@@ -1,0 +1,37 @@
+name: Daily Market Push
+
+on:
+  schedule:
+    # UTC 07:05 = 北京时间 15:05（收盘后）
+    # 周一到周五
+    - cron: '5 7 * * 1-5'
+  workflow_dispatch:  # 保留手动触发，方便测试
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install ashare-data-lite requests
+
+      - name: Run push
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: python push.py
+
+      - name: Keep workflow alive (prevent 60-day auto-disable)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .last-run
+          git add .last-run
+          git commit -m "keep-alive $(date -u +%Y-%m-%d)" || true
+          git push || true
